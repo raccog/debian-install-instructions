@@ -104,7 +104,7 @@ Users `root` and `ryan` are properly setup by default with `uid=0` and `uid=1000
 
 The following commands setup each user. User `ryan` will be added to the `users` group. User `backup-manager` will be created with a new home directory.
 
-```
+```bash
 usermod -aG users ryan
 useradd -m backup-manager
 ```
@@ -164,7 +164,7 @@ As each system has different priorities and devices, storage setup will be very 
 
 Backup archives should be stored in `/archive`.
 
-I set the permissions of `/archive` to be `775` meaning only the owner (`root`) and users in the group (`users`) can write to files under this directory. This prevents accidental or malicious overwrites of backup files by unprivileged users. TODO: Change group from `users` to `backup-manager`.
+I set the permissions of `/archive` to be `750` meaning only the owner (`root`) can write to files under this directory and only users in the group (`users`) can read the files. This prevents accidental or malicious overwrites of backup files by unprivileged users.
 
 #### Archive Structure
 
@@ -178,11 +178,13 @@ Partitions listed in `/etc/fstab` are auto-mounted on system boot.
 
 To match device partitions to UUIDS:
 
-`lsblk -o NAME,SIZE,UUID`
+```bash
+lsblk -o NAME,SIZE,UUID
+```
 
 For adding an ext4 partition to fstab:
 
-```
+```bash
 echo "UUID={UUID} /path/to/mount ext4 defaults 0 0" >> /etc/fstab
 ```
 
@@ -238,13 +240,13 @@ Set `nvim` as `EDITOR` environment variable:
 
 * bash: 
 
-```
+```bash
 echo 'export EDITOR=nvim' >> ~/.profile
 ```
 
 * fish: 
 
-```
+```bash
 set -Ux EDITOR nvim
 ```
 
@@ -256,7 +258,7 @@ Creates extra permissions for running processes as user `root`.
 
 Add `ryan` to the `sudo` group:
 
-```
+```bash
 usermod -aG sudo ryan
 ```
 
@@ -305,7 +307,7 @@ Config file: `/etc/rsyncd.conf`
 
 Example config file that allows reads/writes to/from the `/archive` directory:
 
-```
+```ini
 [archive]
         path = /archive
         comment = Backup Archive
@@ -328,7 +330,7 @@ This allows user `backup-manager` to run only `sudo rsync` or `sudo /usr/bin/rsy
 
 From a client machine, the following command can be run to backup a directory on the client machine to the `/archive` directory on the server:
 
-```
+```bash
 sudo rsync -avP --rsync-path="sudo rsync" -e "ssh" /path/to/backup rsync://backup-manager@<SERVER_ADDR>/archive
 ```
 
@@ -344,7 +346,7 @@ Config file: `/etc/samba/smb.conf`
 
 Example global config:
 
-```
+```ini
 [global]
         workgroup = WORKGROUP
         security = user
@@ -372,7 +374,7 @@ Example global config:
 
 Example config file that opens `/archive` up as a read-only samba share:
 
-```
+```ini
 [archive]
         path = /archive
         comment = Archive
@@ -390,7 +392,7 @@ Samba uses different user permissions than Linux does. So `ryan` needs to be add
 
 Run the following command to add `ryan` as a samba user (it will prompt for a password; use a strong one):
 
-```
+```bash
 smbpasswd -a ryan
 ```
 
@@ -400,13 +402,13 @@ Samba can act as a time machine server by adding a time machine share and instal
 
 Example config that creates a time machine share:
 
-```
+```ini
 [timemachine]
         vfs objects = fruit streams_xattr
         fruit:aapl = yes
         fruit:time machine = yes
         path = /archive/timemachine
-        browseable = yes
+        browseable = no
         read only = no
         writable = yes
         valid users = ryan
