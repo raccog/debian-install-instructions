@@ -90,58 +90,65 @@ If running a ssh server, chose `SSH server`
 
 These instructions describe the general user configuration used throughout multiple systems as well as the steps for setting up users.
 
+My main user is named `ryan`, but this name can be substituted for any other name.
+
 ### List of Users
 
-* [`root`](#root)
-* [`ryan`](#ryan)
-* [`backup-manager`](#backup-manager)
+* [root](#root)
+* [ryan](#ryan)
+* [backup-manager](#backup-manager)
 
 ### User Setup
 
-User `root` is already properly setup by default with `uid=0`. When the [installation instructions](#debian-installer) that setup a default user are followed exactly as they are written, user `ryan` is already created by default with `uid=1000`. User `backup-manager` does not exist by default.
+Users `root` and `ryan` are properly setup by default with `uid=0` and `uid=1000` respectively. User `backup-manager` does not exist by default.
 
 The following commands setup each user. User `ryan` will be added to the `users` group. User `backup-manager` will be created with a new home directory.
 
-`usermod -aG users ryan`
-`useradd -m backup-manager`
+```
+usermod -aG users ryan
+useradd -m backup-manager
+```
 
 ### root
 
-The `root` user will be blocked off as much as possible to prevent accidental or malicious changes to the system.
+Access to the `root` user will be blocked off as much as possible to prevent accidental or malicious changes to the system.
 
-#### Permissions
-
-`root`:
+#### Access
 
 * Cannot login through ssh
 * Has a very strong password
 
-When the `sudo` package is installed, any user in the `sudo` group run the `sudo` command to run another command as root. Users in the `sudo` group need to enter their password in order to run `sudo`. Only `ryan` is given this privilege. (NOTE: Maybe give the user `ryan` sudo permissions without the group if no other user will need the permissions)
+#### Sudo Access
 
-User `backup-manager` can run the `sudo` command without needing a password, but only when running the `rsync` command. This is used for storage backup purposes.
+Users in the `sudo` group have permission to run commands as root using `sudo <COMMAND>`. Note that these users need to enter their password to run `sudo <COMMAND>`. Only user `ryan` is in the `sudo` group for now. (NOTE: Maybe give the user `ryan` sudo permissions without the group if no other user will need the permissions)
+
+User `backup-manager` can run the command `sudo rsync` without needing a password. This is used for storage backup purposes. User `backup-manager` cannot run any other command under sudo except for `rsync`.
 
 ### ryan
 
-User `ryan` is essentially user `root` when the `sudo` package is installed because `ryan` has permission to login as `root`. However, this functionality is locked behind `ryan`'s password.
+User `ryan` is essentially user `root` when the `sudo` package is installed because `ryan` has permission run commands as `root`. However, this functionality is locked behind `ryan`'s password.
 
-#### Permissions
-
-`ryan`:
+#### Access
 
 * Can login through ssh
 * Has a decently strong password
+
+#### Permissions
+
 * Can only access files inside its own home directory (unless using `sudo`)
+* Can run `sudo <COMMAND>` to run a command as `root`.
 
 ### backup-manager
 
 The `backup-manager` user is used to provide client access to storage backups; both reads and writes.
 
-#### Permissions
-
-`backup-manager`:
+#### Access
 
 * Can login through ssh
 * Can have any password
+
+#### Permissions
+
 * Can only access files inside its own home directory
 * Can write files to the `/archive` directory when a client sends files to the rsync server
 
@@ -155,25 +162,29 @@ As each system has different priorities and devices, storage setup will be very 
 
 ### Archives
 
-Archives can be stored in `/archive`. These usually consistof HDDs.
+Backup archives should be stored in `/archive`.
 
-I have no requirements for how `/archive` should be structured. It could be a single directory of system backups, or a directory tree of sorted backups. It could also contain multiple partitions. Generally each partition should be the same filesystem, but this shouldn't matter too much.
+I have no requirements or preferences for how `/archive` should be structured. It could be a single directory of system backups, or a directory tree of sorted backups. It could also contain multiple partitions. Generally each partition should be the same filesystem, but this shouldn't matter too much.
+
+My current server has a single 2.7 TB partition with an ext4 filesystem mounted to `/archive`. However, I plan to use multiple physical partitions in `/archive` for my desktop system, so I will see how I want to set that up eventually.
 
 ### fstab
 
-Partitions listed in `/etc/fstab` will be auto-mounted on system boot.
+Partitions listed in `/etc/fstab` are auto-mounted on system boot.
 
 To match device partitions to UUIDS:
 
 `lsblk -o NAME,SIZE,UUID`
 
-For ext4 partition:
+For adding an ext4 partition to fstab:
 
-`echo "UUID={UUID} /path/to/mount ext4 defaults 0 0" >> /etc/fstab`
+```
+echo "UUID={UUID} /path/to/mount ext4 defaults 0 0" >> /etc/fstab
+```
 
 ## Installing Packages
 
-These instructions show the installation and configuration for every package
+These instructions show the installation and configuration for every package. Only the packages that need explicit configuration changes have their own sub-sections.
 
 Note that most configuration files require a working ssh key connected to my Github account to clone the config repository.
 
@@ -181,13 +192,13 @@ Note that most configuration files require a working ssh key connected to my Git
 
 The following packages will be installed using `apt install <PACKAGE>`:
 
-* [`neovim`](#neovim)
-* [`sudo`](#sudo)
-* `rsync`
+* [neovim](#neovim)
+* [sudo](#sudo)
+* rsync
 
 If running an ssh server:
 
-* `openssh-server`
+* openssh-server
 
 ### neovim
 
@@ -195,7 +206,7 @@ My default text editor.
 
 #### Note
 
-This package is used as a fallback, as neovim will also be installed from source. This is because debian currently supports neovim version `0.4`, while version `0.6` is needed for a default runtime with `toml` syntax highlighting. I need the newer version because I edit Rust toml files often.
+This package is used as a fallback, as neovim will also be installed from source. This is because debian currently supports neovim version `0.4` while version `0.6` is needed for a default runtime with `toml` syntax highlighting. I need the newer version because I edit Rust toml files often.
 
 Thus, the obsolete version is only used if my installation from source is not available for some reason.
 
@@ -211,10 +222,19 @@ Make sure to install in all `/home/<USER>` directories for users that use neovim
 
 *TODO: Move the following line to their respective shell's section*
 
-Set neovim as `EDITOR` environment variable:
+Set `nvim` as `EDITOR` environment variable:
 
-bash: `echo 'export EDITOR=nvim' >> ~/.profile`
-fish: *TODO: SET EDITOR IN FISH*
+* bash: 
+
+```
+echo 'export EDITOR=nvim' >> ~/.profile
+```
+
+* fish: 
+
+```
+set -Ux EDITOR nvim
+```
 
 ### sudo
 
@@ -224,7 +244,9 @@ Creates extra permissions for running processes as user `root`.
 
 Add `ryan` to the `sudo` group:
 
-`usermod -aG sudo ryan`
+```
+usermod -aG sudo ryan
+```
 
 ## Running Services
 
@@ -236,12 +258,12 @@ Note that most configuration files require a working ssh key connected to my Git
 
 Services that will be enabled using `systemctl start <SERVICE>` and `systemctl enable <SERVICE>`:
 
-* [`sshd`](#sshd)
-* [`rsync`](#rsync)
+* [sshd](#sshd)
+* [rsync](#rsync)
 
 ### sshd
 
-Allow clients to access this machine through the `ssh` protocol.
+Allow clients to access this machine through the ssh protocol.
 
 #### Configuration
 
@@ -253,8 +275,8 @@ Config files:
 The configuration process needs to be done in the following steps:
 
 1. Start running the `sshd` service with the default config file.
-2. Create ssh keys for each potential client and send them to the ssh server.
-3. Add keys to `~/.ssh/authorized_keys` file for each user that can login through ssh.
+2. Create ssh keys for each potential client and send them to the ssh server using `scp`.
+3. Add these keys to `~/.ssh/authorized_keys` file for each user that can login through ssh.
 4. Install custom config file from Github to allow ssh keys and disable passwords.
 
 #### Client Configuration
@@ -284,7 +306,9 @@ Example config file that allows reads/writes to/from the `/archive` directory:
 
 Run `visudo` and add the following line:
 
-`backup-manager ALL= NOPASSWD:/usr/bin/rsync`
+```
+backup-manager ALL= NOPASSWD:/usr/bin/rsync
+```
 
 This allows user `backup-manager` to run only `sudo rsync` or `sudo /usr/bin/rsync`. Trying to run any other command with sudo will fail for this user. To backup a directory from a client machine, an ssh key for `backup-manager` is needed.
 
@@ -292,6 +316,8 @@ This allows user `backup-manager` to run only `sudo rsync` or `sudo /usr/bin/rsy
 
 From a client machine, the following command can be run to backup a directory on the client machine to the `/archive` directory on the server:
 
-`sudo rsync -avP --rsync-path="sudo rsync" -e "ssh" /path/to/backup rsync://backup-manager@<SERVER_ADDR>/archive`
+```
+sudo rsync -avP --rsync-path="sudo rsync" -e "ssh" /path/to/backup rsync://backup-manager@<SERVER_ADDR>/archive
+```
 
-`sudo` is used to ensure file permissions and ownership stay unaltered.
+The command `sudo` is used to ensure file permissions and ownership stay unaltered.
