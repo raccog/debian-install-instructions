@@ -164,6 +164,10 @@ As each system has different priorities and devices, storage setup will be very 
 
 Backup archives should be stored in `/archive`.
 
+I set the permissions of `/archive` to be `775` meaning only the owner (`root`) and users in the group (`users`) can write to files under this directory. This prevents accidental or malicious overwrites of backup files by unprivileged users. TODO: Change group from `users` to `backup-manager`.
+
+#### Archive Structure
+
 I have no requirements or preferences for how `/archive` should be structured. It could be a single directory of system backups, or a directory tree of sorted backups. It could also contain multiple partitions. Generally each partition should be the same filesystem, but this shouldn't matter too much.
 
 My current server has a single 2.7 TB partition with an ext4 filesystem mounted to `/archive`. However, I plan to use multiple physical partitions in `/archive` for my desktop system, so I will see how I want to set that up eventually.
@@ -193,12 +197,20 @@ Note that most configuration files require a working ssh key connected to my Git
 The following packages will be installed using `apt install <PACKAGE>`:
 
 * [neovim](#neovim)
-* [sudo](#sudo)
 * rsync
+* [sudo](#sudo)
 
 If running an ssh server:
 
 * openssh-server
+
+If running a Samba server:
+
+* samba
+
+If running a MacOS Time Machine server:
+
+* avahi-daemon
 
 ### neovim
 
@@ -321,3 +333,84 @@ sudo rsync -avP --rsync-path="sudo rsync" -e "ssh" /path/to/backup rsync://backu
 ```
 
 The command `sudo` is used to ensure file permissions and ownership stay unaltered.
+
+### smbd
+
+Allow MacOS/Windows clients to read/write to the system's local storage.
+
+#### Configuration
+
+Config file: `/etc/samba/smb.conf`
+
+Example global config:
+
+```
+[global]
+        workgroup = WORKGROUP
+        security = user
+        log file = /var/log/samba/log.%m
+        max log size = 1000
+        logging = file
+        panic action = /usr/share/samba/panic-action %d
+        server role = standalone server
+        obey pam restrictions = yes
+        unix password sync = yes
+        passwd program = /usr/bin/passwd %u
+        passwd chat = *Enter\snew\s*\spassword:* %n\n *Retype\snew\s*\spassword:* %n\n *password\supdated\ssuccessfully* .
+        pam password change = yes
+
+        # Time machine global settings
+        min protocol = SMB2
+        ea support = yes
+        vfs objects = fruit streams_xattr
+        fruit:metadata = stream
+        fruit:model = MacSamba
+        fruit:veto_appledouble = yes
+        fruit:posix_rename = yes
+        fruit:zero_file_id = yes
+```
+
+Example config file that opens `/archive` up as a read-only samba share:
+
+```
+[archive]
+        path = /archive
+        comment = Archive
+        browseable = yes
+        read only = yes
+        writable = no
+        valid users = ryan
+        public = no
+        guest ok = no
+```
+
+#### Add Samba Users
+
+Samba uses different user permissions than Linux does. So `ryan` needs to be added as a samba user to access this samba share. Note that for a samba user to exist, a Linux user with the same name needs to also exist.
+
+Run the following command to add `ryan` as a samba user (it will prompt for a password; use a strong one):
+
+```
+smbpasswd -a ryan
+```
+
+#### Time Machine Server
+
+Samba can act as a time machine server by adding a time machine share and installing `avahi-daemon`.
+
+Example config that creates a time machine share:
+
+```
+[timemachine]
+        vfs objects = fruit streams_xattr
+        fruit:aapl = yes
+        fruit:time machine = yes
+        path = /archive/timemachine
+        browseable = yes
+        read only = no
+        writable = yes
+        valid users = ryan
+        public = no
+        guest ok = no
+        fruit:time machine max size = 200G
+```
