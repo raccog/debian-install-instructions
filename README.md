@@ -214,6 +214,10 @@ If running a MacOS Time Machine server:
 
 * avahi-daemon
 
+If running a mini-DLNA media server:
+
+* minidlna
+
 ### neovim
 
 My default text editor.
@@ -416,3 +420,32 @@ Example config that creates a time machine share:
         guest ok = no
         fruit:time machine max size = 200G
 ```
+
+### minidlna
+
+Allow DLNA clients to stream media from the server.
+
+#### Configuration
+
+Config file: `/etc/minidlna.conf`
+
+Add at least the following lines to the config file:
+
+```ini
+user=minidlna
+mediadir=/path/to/media
+```
+
+#### User Configuration
+
+Ensure the following statements are true:
+
+1. The directory used as `mediadir` must have permissions for the `users` group to read files.
+
+2. The `minidlna` user should be added to the `users` group with the following command run as root:
+
+   ```bash
+   usermod -aG users minidlna
+   ```
+
+   
